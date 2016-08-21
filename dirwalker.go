@@ -27,11 +27,11 @@ func main() {
 		s := flag.Arg(i)
 		if strings.HasPrefix(s, "pathpass:") {
 			//过滤文件夹
-			pathpass = append(pathpass, strings.Split(strings.Split(s, "pathpass:")[1], ",")[0])
+			pathpass = strings.Split(strings.Split(s, "pathpass:")[1], ",")
 		}
 		if strings.HasPrefix(s, "filepass:") {
 			//过滤文件
-			filepass = append(filepass, strings.Split(strings.Split(s, "filepass:")[1], ",")[0])
+			filepass = strings.Split(strings.Split(s, "filepass:")[1], ",")
 		}
 	}
 	getSha(listpath, pathpass, filepass)
