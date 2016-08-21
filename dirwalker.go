@@ -10,18 +10,33 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 )
 
-var listfile, pathpass, filepass []string
+var (
+	pathpass, filepass []string
+	reslutfile         string
+	f                  *os.File
+)
+
+type Service struct {
+	waitGroup *sync.WaitGroup
+}
 
 //go run dirwalker.go d:/test d:/test/test.txt pathpass:d:/test/test1 filepass:d:/test/test2/test2.txt
 func main() {
+	fmt.Println(time.Now())
+	serve := &Service{
+		waitGroup: &sync.WaitGroup{},
+	}
 	//获取参数
 	flag.Parse()
 	//所选文件夹    参数1 路径
 	listpath := flag.Arg(0)
 	//结果存放文件  参数2 文件
 	reslutfile := flag.Arg(1)
+	f, _ = os.Create(reslutfile)
 	//获取过滤条件 参数3，4...
 	for i := 2; i < flag.NArg(); i++ {
 		s := flag.Arg(i)
@@ -34,17 +49,17 @@ func main() {
 			filepass = strings.Split(strings.Split(s, "filepass:")[1], ",")
 		}
 	}
-	getSha(listpath, pathpass, filepass)
-	f, _ := os.Create(reslutfile)
-	for _, a := range listfile {
-		//比如txt文件里，体现不出换行
-		f.WriteString(a + "\n")
-	}
+	//goroutine并发控制
+	serve.waitGroup.Add(1)
+	go serve.getInfo(listpath, pathpass, filepass)
+	serve.waitGroup.Wait()
 	defer f.Close()
+	fmt.Println(time.Now())
 }
 
 //遍历所有文件及文件夹
-func getSha(listpath string, pathpass []string, filepass []string) {
+func (serve *Service) getInfo(listpath string, pathpass []string, filepass []string) {
+	defer serve.waitGroup.Done()
 	infos, _ := ioutil.ReadDir(listpath)
 	for _, info := range infos {
 		if info.IsDir() {
@@ -65,28 +80,36 @@ func getSha(listpath string, pathpass []string, filepass []string) {
 				continue
 			} else {
 				path := listpath + "/" + info.Name()
-				getSha(path, pathpass, filepass)
+				serve.waitGroup.Add(1)
+				go serve.getInfo(path, pathpass, filepass)
 			}
-
 		} else {
-			//文件
-			bol := false
-			bol2 := false
-			//判断是否过滤文件
-			for _, pass := range filepass {
-				g := glob.MustCompile(pass)
-				bol = g.Match(listpath + "/" + info.Name())
-				if bol == true {
-					bol2 = true
-				}
-			}
-			if bol2 == true {
-				continue
-			} else {
-		        	str := listpath + ":  " + info.Name() + "," + getSha1(listpath+"/"+info.Name()) + "," + getSize(info)
-				listfile = append(listfile, str)
-			}
+			serve.waitGroup.Add(1)
+			go serve.file(listpath, info)
 		}
+	}
+}
+
+//写文件信息
+func (serve *Service) file(listpath string, info os.FileInfo) {
+	//文件
+	//检查本文件
+	defer serve.waitGroup.Done()
+	bol := false
+	bol2 := false
+	//判断是否过滤文件
+	for _, pass := range filepass {
+		g := glob.MustCompile(pass)
+		bol = g.Match(listpath + "/" + info.Name())
+		if bol == true {
+			bol2 = true
+		}
+	}
+	if bol2 == true {
+		return
+	} else {
+		str := listpath + ":  " + info.Name() + "," + getSha1(listpath+"/"+info.Name()) + "," + getSize(info)
+		f.WriteString(str + "\n")
 	}
 }
 
@@ -102,3 +125,4 @@ func getSha1(path string) string {
 func getSize(info os.FileInfo) string {
 	return strconv.FormatInt(info.Size(), 10)
 }
+
