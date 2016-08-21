@@ -56,7 +56,7 @@ func getSha(listpath string, pathpass []string, filepass []string) {
 			for _, pass := range pathpass {
 				g := glob.MustCompile(pass)
 				bol = g.Match(listpath + "/" + info.Name())
-				//是过滤路径，递归遍历下一目标
+				//是过滤路径，遍历下一目标，否则递归遍历下一级路径
 				if bol == true {
 					bol2 = true
 				}
@@ -70,9 +70,6 @@ func getSha(listpath string, pathpass []string, filepass []string) {
 
 		} else {
 			//文件
-			//检查本文件
-			//     路径                   文件名           Sha1哈希值                大小
-			str := listpath + ":  " + info.Name() + "," + getSha1(listpath) + "," + getSize(info)
 			bol := false
 			bol2 := false
 			//判断是否过滤文件
@@ -86,6 +83,7 @@ func getSha(listpath string, pathpass []string, filepass []string) {
 			if bol2 == true {
 				continue
 			} else {
+		        	str := listpath + ":  " + info.Name() + "," + getSha1(listpath+"/"+info.Name()) + "," + getSize(info)
 				listfile = append(listfile, str)
 			}
 		}
