@@ -66,17 +66,16 @@ func (serve *Service) getInfo(listpath string, pathpass []string, filepass []str
 			//路径
 			//检查本路径
 			bol := false
-			bol2 := false
 			//判断是否过滤路径
 			for _, pass := range pathpass {
 				g := glob.MustCompile(pass)
 				bol = g.Match(listpath + "/" + info.Name())
 				//是过滤路径，遍历下一目标，否则递归遍历下一级路径
 				if bol == true {
-					bol2 = true
+					break
 				}
 			}
-			if bol2 == true {
+			if bol == true {
 				continue
 			} else {
 				path := listpath + "/" + info.Name()
@@ -96,16 +95,15 @@ func (serve *Service) file(listpath string, info os.FileInfo) {
 	//检查本文件
 	defer serve.waitGroup.Done()
 	bol := false
-	bol2 := false
 	//判断是否过滤文件
 	for _, pass := range filepass {
 		g := glob.MustCompile(pass)
 		bol = g.Match(listpath + "/" + info.Name())
 		if bol == true {
-			bol2 = true
+			break
 		}
 	}
-	if bol2 == true {
+	if bol == true {
 		return
 	} else {
 		str := listpath + ":  " + info.Name() + "," + getSha1(listpath+"/"+info.Name()) + "," + getSize(info)
