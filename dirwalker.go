@@ -83,8 +83,7 @@ func (serve *Service) getInfo(listpath string, pathpass []string, filepass []str
 				go serve.getInfo(path, pathpass, filepass)
 			}
 		} else {
-			serve.waitGroup.Add(1)
-			go serve.file(listpath, info)
+			serve.file(listpath, info)
 		}
 	}
 }
@@ -93,34 +92,50 @@ func (serve *Service) getInfo(listpath string, pathpass []string, filepass []str
 func (serve *Service) file(listpath string, info os.FileInfo) {
 	//文件
 	//检查本文件
-	defer serve.waitGroup.Done()
 	bol := false
 	//判断是否过滤文件
 	for _, pass := range filepass {
 		g := glob.MustCompile(pass)
 		bol = g.Match(listpath + "/" + info.Name())
 		if bol == true {
-			break
+			return
 		}
 	}
-	if bol == true {
-		return
-	} else {
-		str := listpath + ":  " + info.Name() + "," + getSha1(listpath+"/"+info.Name()) + "," + getSize(info)
-		f.WriteString(str + "\n")
-	}
+	str := listpath + ":  " + info.Name() + "," + getSha1(listpath+"/"+info.Name(), info.Size()) + "," + getSize(info)
+	f.WriteString(str + "\n")
 }
 
 //获取Sha1哈希值
-func getSha1(path string) string {
+func getSha1(path string, size int64) string {
 	file, _ := os.Open(path)
 	h := sha1.New()
-	io.Copy(h, file)
-	return fmt.Sprintf("%x", h.Sum(nil))
+	if size > 4194304 {
+		n := size / 4194304
+		m := size % 4194304
+		if m != 0 {
+			n = n + 1
+		}
+		slice := make([]byte, 4194304)
+		slice2 := make([]byte, m)
+		for i := int64(0); i < n; i++ {
+			if i == n-1 {
+				file.ReadAt(slice2, i*4194304)
+				h.Write(slice2)
+			} else {
+				file.ReadAt(slice, i*4194304)
+				h.Write(slice)
+			}
+		}
+		return fmt.Sprintf("%x", h.Sum(nil))
+	} else {
+		io.Copy(h, file)
+		return fmt.Sprintf("%x", h.Sum(nil))
+	}
 }
 
 //获取文件大小
 func getSize(info os.FileInfo) string {
 	return strconv.FormatInt(info.Size(), 10)
 }
+
 
